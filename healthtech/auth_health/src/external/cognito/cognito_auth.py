@@ -44,7 +44,7 @@ class CognitoAuth():
                 "username" : token_validado['Username'],
                 "email" : email,
                 "uuid_user" : token_decodificado['sub'],
-                "grupo" : token_decodificado['cognito:groups'],
+                "grupos" : token_decodificado['cognito:groups'],
                 "token" : token
             }
         except Exception as e:
