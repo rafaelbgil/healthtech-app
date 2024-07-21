@@ -9,3 +9,5 @@ migrations/
 plain.output
 coverage.xml
 __pycache__/
+.env
+.vscode
