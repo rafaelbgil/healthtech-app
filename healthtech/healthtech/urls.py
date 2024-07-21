@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('auth/', include('auth_health.urls')),
+    path('api/auth/', include('auth_health.urls')),
+   # path('api/medico/', include('medico.urls')),
     path('admin/', admin.site.urls),
 ]

@@ -39,10 +39,11 @@ class CognitoAuth():
                     email = registro['Value']
 
             token_decodificado = jwt.decode(token, options={"verify_signature": False})
-
+            print(token_decodificado)
             informacoes = {
                 "username" : token_validado['Username'],
                 "email" : email,
+                "uuid_user" : token_decodificado['sub'],
                 "grupo" : token_decodificado['cognito:groups'],
                 "token" : token
             }
