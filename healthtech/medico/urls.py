@@ -7,4 +7,5 @@ urlpatterns = [
     #api endpoints
     path('agenda/', views.MedicoAgendaView.as_view()),
     path('agenda/<str:uuid>/', views.MedicoAgendaDetalhesView.as_view()),
+    path('agenda/<str:uuid>/confirmar/', views.MedicoAgendaConfirmarView.as_view()),
 ]
