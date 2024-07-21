@@ -1,0 +1,11 @@
+*.pyc
+db.sqlite3
+*.pyc
+*.pyc
+sql_app.db
+.coverage
+migrations/
+.idea/
+plain.output
+coverage.xml
+__pycache__/
