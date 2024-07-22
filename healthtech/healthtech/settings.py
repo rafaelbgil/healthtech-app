@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'auth_health',
     'medico',
     'agenda',
+    'paciente',
 ]
 
 MIDDLEWARE = [
