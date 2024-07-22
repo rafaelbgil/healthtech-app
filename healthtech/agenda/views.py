@@ -1,14 +1,11 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from .serializers import AgendaSerializer
 from rest_framework import status
 from rest_framework.response import Response
 
 from auth_health.src.utils.validar_permissoes import validar_permissoes
-from medico.src.domain.usecase.agenda import AgendaMedico
 from agenda.models import Agenda
-from django.db.models import Q
-from medico.models import PerfilMedico
+from paciente.models import PerfilPaciente
 from agenda.serializers import AgendaSerializer
 
 
@@ -60,8 +57,10 @@ class AgendaReservarView(APIView):
         if agenda.status != "disponivel":
             return Response(data={"message": "Não é possível reserva uma agenda que não esteja com status 'disponível'."}, status=status.HTTP_404_NOT_FOUND)
         
+        paciente = PerfilPaciente.objects.get(uuid=informacoes_token['uuid_user'])
         agenda.status = 'aguardando_confirmacao'
         agenda.uuid_paciente = informacoes_token['uuid_user']
+        agenda.nome_paciente = paciente.nome
         agenda.save()
         serializer = AgendaSerializer(instance=agenda)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
