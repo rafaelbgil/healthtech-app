@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-healthtech
+  name: app-healthtech
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-healthtech
+  template:
+    metadata:
+      labels:
+        app: app-healthtech
+    spec:
+      containers:
+        - image: rafaelbgil/fiap-healthtech:1.0.2
+          name: fiap-pos-tech
+          env:
+            - name: DATABASE_PORT
+              value: "3306"
+            - name: DATABASE_NAME
+              value: fiap
+
+          #Secrets como variavies para acesso ao banco
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-db
+                  key: DATABASE_HOST
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-db
+                  key: DATABASE_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-db
+                  key: DATABASE_PASSWORD
+            - name: DJANGO_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-db
+                  key: DJANGO_KEY
+
+          #Secrets como variavies para aws
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-aws
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-aws
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-aws
+                  key: AWS_DEFAULT_REGION
+
+          #Secrets como variavies cognito
+            - name: COGNITO_POOL
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-cognito
+                  key: COGNITO_POOL
+            - name: COGNITO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-cognito
+                  key: COGNITO_CLIENT_ID
+            - name: COGNITO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fiap-secrets-cognito
+                  key: COGNITO_CLIENT_SECRET
+
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: 100m
+
+          livenessProbe:
+            httpGet:
+              path: '/swagger/'
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+
+        - name: proxy-reverso
+          image: rafaelbgil/fiap-pos-tech-proxy:v1
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+
+          volumeMounts:
+            - name: nginx-app-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          livenessProbe:
+            httpGet:
+              path: '/static/drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js'
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+
+      volumes:
+        - name: nginx-app-conf
+          configMap:
+            name: nginx-app-conf

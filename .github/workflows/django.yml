@@ -8,57 +8,121 @@ on:
     branches: [ "main" ]
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-    env:
+  # tests:
+  #   runs-on: ubuntu-latest
+  #   env:
       
-      URL_DOMINIO: teste
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [ '3.10' ]
-    steps:
-      - name: Assegurando copia do repositorio
-        uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install Dependencies
-        working-directory: ./healthtech
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run Tests
-        working-directory: ./healthtech
-        run: |
-          make test-xml
-        env:
-          DJANGO_KEY: ${{ secrets.DJANGO_KEY }}
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     URL_DOMINIO: teste
+  #   strategy:
+  #     max-parallel: 4
+  #     matrix:
+  #       python-version: [ '3.10' ]
+  #   steps:
+  #     - name: Assegurando copia do repositorio
+  #       uses: actions/checkout@v4
+  #     - name: Set up Python ${{ matrix.python-version }}
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #     - name: Install Dependencies
+  #       working-directory: ./healthtech
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install -r requirements.txt
+  #     - name: Run Tests
+  #       working-directory: ./healthtech
+  #       run: |
+  #         make test-xml
+  #       env:
+  #         DJANGO_KEY: ${{ secrets.DJANGO_KEY }}
+  #     - name: SonarCloud Scan
+  #       uses: SonarSource/sonarcloud-github-action@master
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  release:
-    needs: tests
-    if: startsWith(github.ref, 'refs/tags/')
+  # release:
+  #   needs: tests
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     DOCKER_HUB_REPOSITORY: ${{ vars.DOCKER_HUB_REPOSITORY }}
+  #     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  #     DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  #   steps:
+  #     - name: Assegurando copia do repositorio
+  #       uses: actions/checkout@v4
+
+  #     - name: Realizando login no dockerhub
+  #       run: 'docker login -u ${{ env.DOCKERHUB_USERNAME }} -p ${{ env.DOCKERHUB_PASSWORD }}'
+
+  #     - name: Gerando imagem ${{ github.ref_name }}
+  #       working-directory: ./healthtech
+  #       run: 'docker buildx build -t ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }} .'
+
+  #     - name: Realizando push para o dockerhub
+  #       run: 'docker push ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }}'
+
+
+  terraform:
+    name: 'Terraform'
     runs-on: ubuntu-latest
+    environment: production
     env:
-      DOCKER_HUB_REPOSITORY: ${{ vars.DOCKER_HUB_REPOSITORY }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      DATABASE_USER: ${{ secrets.DATABASE_USER }}
+      DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+      DATABASE_HOST_CATALOGO: ${{ secrets.DATABASE_HOST_CATALOGO }}
+      DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+      COGNITO_POOL: ${{ secrets.COGNITO_POOL }}
+      COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+      COGNITO_CLIENT_SECRET: ${{ secrets.COGNITO_CLIENT_SECRET }}
+      DJANGO_KEY: ${{ secrets.DJANGO_KEY }}
+      
+    # Utilizar o bash para comandos do terraform
+    defaults:
+      run:
+        shell: bash
+
     steps:
-      - name: Assegurando copia do repositorio
-        uses: actions/checkout@v4
+    # Checkout do repositorio
+    - name: Checkout
+      uses: actions/checkout@v3
 
-      - name: Realizando login no dockerhub
-        run: 'docker login -u ${{ env.DOCKERHUB_USERNAME }} -p ${{ env.DOCKERHUB_PASSWORD }}'
+    # inicializar o terraform
+    - name: Terraform Init
+      run: terraform init
 
-      - name: Gerando imagem ${{ github.ref_name }}
-        working-directory: ./healthtech
-        run: 'docker buildx build -t ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }} .'
+    # Gerar plano de execucao
+    - name: Terraform Plan
+      run: terraform plan -input=false
 
-      - name: Realizando push para o dockerhub
-        run: 'docker push ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }}'
+    - name: Aplicar mudanca via terraform
+      run: terraform apply -auto-approve -input=false
+
+    # Assegurar deploy do k8s
+    - name: Configurar kubeconfig
+      run: aws eks update-kubeconfig --name fiap-cluster-k8s
+    
+    - name: Assegurar secrets de banco para o k8s
+      run: kubectl create --dry-run=client secret generic fiap-secrets-db --from-literal=DATABASE_USER="$DATABASE_USER" --from-literal=DATABASE_HOST="$DATABASE_HOST" --from-literal=DATABASE_HOST_CATALOGO="$DATABASE_HOST_CATALOGO" --from-literal=DATABASE_PASSWORD="$DATABASE_PASSWORD" --from-literal=DJANGO_KEY="$DJANGO_KEY" -o yaml > fiap-secrets-db.yml
+
+    - name: Aplicar secrets de banco
+      run: kubectl apply -f fiap-secrets-db.yml
+
+    - name: Assegurar secrets da aws para o k8s
+      run: kubectl create --dry-run=client secret generic fiap-secrets-aws --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" --from-literal=AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" -o yaml > fiap-secrets-aws.yml
+
+    - name: Aplicar secrets da aws
+      run: kubectl apply -f fiap-secrets-aws.yml
+
+    - name: Assegurar secrets do cognito para o k8s
+      run: kubectl create --dry-run=client secret generic fiap-secrets-cognito --from-literal=COGNITO_POOL="$COGNITO_POOL" --from-literal=COGNITO_CLIENT_ID="$COGNITO_CLIENT_ID" --from-literal=COGNITO_CLIENT_SECRET="$COGNITO_CLIENT_SECRET" -o yaml > fiap-secrets-cognito.yml
+
+    - name: Aplicar secrets do cognito
+      run: kubectl apply -f fiap-secrets-cognito.yml
+
+    - name: Deploy dos yamls do k8s
+      run: kubectl apply -f k8s/
 
