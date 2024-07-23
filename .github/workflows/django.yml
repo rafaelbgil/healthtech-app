@@ -36,6 +36,7 @@ jobs:
         env:
           DJANGO_KEY: ${{ secrets.DJANGO_KEY }}
       - name: SonarCloud Scan
+        working-directory: ./healthtech
         uses: SonarSource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
