@@ -11,5 +11,4 @@ RUN apk add --no-cache gcc python3 python3-dev linux-headers musl-dev pcre-dev p
 
 EXPOSE 8000
 
-
 CMD ["uwsgi", "--ini", "uwsgi.ini"]
