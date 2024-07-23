@@ -1,0 +1,63 @@
+name: Django CI
+run-name: Django CI Fiap
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      
+      URL_DOMINIO: teste
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [ '3.10' ]
+    steps:
+      - name: Assegurando copia do repositorio
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Dependencies
+        working-directory: ./healthtech-app
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run Tests
+        working-directory: ./healthtech-app
+        run: |
+          make test-xml
+        env:
+          DJANGO_KEY: ${{ secrets.DJANGO_KEY }}
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  release:
+    needs: tests
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_HUB_REPOSITORY: ${{ vars.DOCKER_HUB_REPOSITORY }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+    steps:
+      - name: Assegurando copia do repositorio
+        uses: actions/checkout@v4
+
+      - name: Realizando login no dockerhub
+        run: 'docker login -u ${{ env.DOCKERHUB_USERNAME }} -p ${{ env.DOCKERHUB_PASSWORD }}'
+
+      - name: Gerando imagem ${{ github.ref_name }}
+        working-directory: ./healthtech-app
+        run: 'docker buildx build -t ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }} .'
+
+      - name: Realizando push para o dockerhub
+        run: 'docker push ${{ env.DOCKER_HUB_REPOSITORY }}:${{ github.ref_name }}'
