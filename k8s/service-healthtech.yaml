@@ -2,8 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: pedido
-  name: pedido
+    app: app-healthtech
+  name: healthtech
 spec:
   ports:
   - port: 8000

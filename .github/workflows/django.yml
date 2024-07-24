@@ -64,6 +64,8 @@ jobs:
 
 
   terraform:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/')
     name: 'Terraform'
     runs-on: ubuntu-latest
     environment: production
