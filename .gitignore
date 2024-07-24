@@ -11,3 +11,5 @@ coverage.xml
 __pycache__/
 .env
 .vscode
+.terraform/
+.terraform*
