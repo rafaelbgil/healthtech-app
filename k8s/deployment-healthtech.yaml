@@ -15,7 +15,7 @@ spec:
         app: app-healthtech
     spec:
       containers:
-        - image: rafaelbgil/fiap-healthtech:1.0.7
+        - image: rafaelbgil/fiap-healthtech:1.0.8
           name: fiap-pos-tech
           env:
             - name: DATABASE_PORT
